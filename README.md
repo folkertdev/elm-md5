@@ -1,4 +1,5 @@
 # elm-md5
+[![Build Status](https://travis-ci.org/truqu/elm-md5.svg?branch=master)](https://travis-ci.org/truqu/elm-md5)
 
 Compute MD5 message digests in Elm.
 
