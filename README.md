@@ -2,6 +2,8 @@
 
 Compute MD5 message digests in Elm.
 
+This is a maintained fork of sanichi/elm-md5 focusing on performance.
+
 ## Quick Start
 
 This library exposes just one function, `hex`, which takes a `String` input and returns the 128-bit MD5
@@ -25,3 +27,7 @@ myHex input =
     in
         MD5.hex myInput
 ```
+
+## License
+
+Licensed under BSD-3. See `LICENSE` file. (c) 2016-2018 Mark Orr, 2018-present TruQu
