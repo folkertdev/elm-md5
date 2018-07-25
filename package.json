@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "test": "elm-format --validate src && elm-test"
+  },
+  "dependencies": {
+    "elm-format": "^0.7.0-exp",
+    "elm-test": "^0.18.12"
+  }
+}
