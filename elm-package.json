@@ -1,7 +1,7 @@
 {
-    "version": "1.0.6",
-    "summary": "Compute MD5 message digests in pure Elm",
-    "repository": "https://github.com/sanichi/elm-md5.git",
+    "version": "1.0.0",
+    "summary": "Quickly compute MD5 message digests in pure Elm",
+    "repository": "https://github.com/truqu/elm-md5.git",
     "license": "BSD3",
     "source-directories": [
         "src"
