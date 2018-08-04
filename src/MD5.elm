@@ -32,7 +32,7 @@ For example:
     myHex input =
         let
             myInput =
-                Regex.replace Regex.All (Regex.regex "\x0D\n") (\_ -> "\n") input
+                Regex.replace Regex.All (Regex.regex "\u{000D}\n") (\_ -> "\n") input
         in
         hex myInput
 
@@ -40,14 +40,14 @@ For example:
 hex : String -> String
 hex string =
     let
-        ( a, b, c, d ) =
+        { a, b, c, d } =
             hash string
     in
     wordToHex a ++ wordToHex b ++ wordToHex c ++ wordToHex d
 
 
-hex_ : List Int -> ( Int, Int, Int, Int ) -> ( Int, Int, Int, Int )
-hex_ xs ( a, b, c, d ) =
+hex_ : List Int -> State -> State
+hex_ xs ({ a, b, c, d } as acc) =
     case xs of
         [ x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15 ] ->
             let
@@ -315,13 +315,13 @@ hex_ xs ( a, b, c, d ) =
                 d17 =
                     addUnsigned d00 d16
             in
-            ( a17, b17, c17, d17 )
+            { a = a17, b = b17, c = c17, d = d17 }
 
         _ ->
-            ( a, b, c, d )
+            acc
 
 
-hash : String -> ( Int, Int, Int, Int )
+hash : String -> State
 hash input =
     input
         |> UTF8.foldl consume ( initialHashState, ( 0, emptyWords ), 0 )
@@ -333,9 +333,13 @@ emptyWords =
     Array.repeat 16 0
 
 
+type alias State =
+    { a : Int, b : Int, c : Int, d : Int }
+
+
 type alias Acc =
     ( -- hash state
-      ( Int, Int, Int, Int )
+      State
       -- splitting into words
     , ( Int, Array Int )
       -- total byte count
@@ -343,16 +347,16 @@ type alias Acc =
     )
 
 
-initialHashState : ( Int, Int, Int, Int )
+initialHashState : State
 initialHashState =
-    ( 0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476 )
+    State 0x67452301 0xEFCDAB89 0x98BADCFE 0x10325476
 
 
 consume : Int -> Acc -> Acc
 consume char ( hashState, ( byteCount, words ), totalByteCount ) =
     let
         bytePosition =
-            8 * (byteCount % 4)
+            8 * remainderBy 4 byteCount
 
         code =
             shiftLeftBy bytePosition char
@@ -375,14 +379,14 @@ consume char ( hashState, ( byteCount, words ), totalByteCount ) =
         ( hashState, ( byteCount + 1, newWords ), totalByteCount + 1 )
 
 
-finishUp : Acc -> ( Int, Int, Int, Int )
+finishUp : Acc -> State
 finishUp ( hashState, ( byteCount, words ), totalByteCount ) =
     let
         wordCount =
             byteCount // 4
 
         bytePosition =
-            8 * (byteCount % 4)
+            8 * remainderBy 4 byteCount
 
         oldWord =
             iget wordCount words
@@ -401,13 +405,13 @@ finishUp ( hashState, ( byteCount, words ), totalByteCount ) =
             |> Array.set 14 (shiftLeftBy 3 totalByteCount)
             |> Array.set 15 (shiftRightZfBy 29 totalByteCount)
             |> Array.toList
-            |> flip hex_ hashState
+            |> (\x -> hex_ x hashState)
     else
         emptyWords
             |> Array.set 14 (shiftLeftBy 3 totalByteCount)
             |> Array.set 15 (shiftRightZfBy 29 totalByteCount)
             |> Array.toList
-            |> flip hex_ (hex_ (Array.toList newWords) hashState)
+            |> (\x -> hex_ x (hex_ (Array.toList newWords) hashState))
 
 
 wordToHex : Int -> String
@@ -428,8 +432,8 @@ wordToHex_ input index output =
 
 
 toHex : Int -> String
-toHex i =
-    case i of
+toHex byte =
+    case byte of
         0 ->
             "0"
 
@@ -479,7 +483,7 @@ toHex i =
             "f"
 
         _ ->
-            toHex (i // 16) ++ toHex (i % 16)
+            toHex (byte // 16) ++ toHex (remainderBy 16 byte)
 
 
 rotateLeft : Int -> Int -> Int
@@ -542,8 +546,8 @@ ii a b c d x s ac =
 
 
 cmn : (Int -> Int -> Int -> Int) -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
-cmn f a b c d x s ac =
-    addUnsigned (f b c d) x
+cmn fun a b c d x s ac =
+    addUnsigned (fun b c d) x
         |> addUnsigned ac
         |> addUnsigned a
         |> rotateLeft s
