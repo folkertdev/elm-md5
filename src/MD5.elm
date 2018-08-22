@@ -20,7 +20,8 @@ import String.UTF8 as UTF8
 {-| Given a string of arbitrary length, returns a string of 32 hexadecimal characters (a-f, 0-9)
 representing the 128-bit MD5 message digest.
 
-    hex ""          == "d41d8cd98f00b204e9800998ecf8427e"
+    hex "" == "d41d8cd98f00b204e9800998ecf8427e"
+
     hex "foobarbaz" == "6df23dc03f9b54cc38a0fc1483df6e21"
 
 Unlike the [Javascript program](https://css-tricks.com/snippets/javascript/javascript-md5/) upon which this
@@ -375,6 +376,7 @@ consume char ( hashState, ( byteCount, words ), totalByteCount ) =
     in
     if byteCount == 63 then
         ( hex_ (Array.toList newWords) hashState, ( 0, emptyWords ), totalByteCount + 1 )
+
     else
         ( hashState, ( byteCount + 1, newWords ), totalByteCount + 1 )
 
@@ -406,6 +408,7 @@ finishUp ( hashState, ( byteCount, words ), totalByteCount ) =
             |> Array.set 15 (shiftRightZfBy 29 totalByteCount)
             |> Array.toList
             |> (\x -> hex_ x hashState)
+
     else
         emptyWords
             |> Array.set 14 (shiftLeftBy 3 totalByteCount)
@@ -423,6 +426,7 @@ wordToHex_ : Int -> Int -> String -> String
 wordToHex_ input index output =
     if index > 3 then
         output
+
     else
         let
             byte =
