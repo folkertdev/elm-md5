@@ -1,4 +1,4 @@
-module MD5 exposing (hex)
+module MD5 exposing (hex, bytes)
 
 {-| This library allows you to compute MD5 message digests in Elm. It exposes a
 single function that takes any string and outputs a "fingerprint" containing 32
@@ -8,7 +8,7 @@ hexadecimal characters. More information about the MD5 algorithm can be found
 
 # Digest Functions
 
-@docs hex
+@docs hex, bytes
 
 -}
 
@@ -17,34 +17,55 @@ import Bitwise exposing (and, complement, or, shiftLeftBy, shiftRightBy, shiftRi
 import String.UTF8 as UTF8
 
 
-{-| Given a string of arbitrary length, returns a string of 32 hexadecimal characters (a-f, 0-9)
-representing the 128-bit MD5 message digest.
+{-| Given a string of arbitrary length, returns a string of 32 hexadecimal
+characters (a-f, 0-9) representing the 128-bit MD5 message digest.
 
-    hex "" == "d41d8cd98f00b204e9800998ecf8427e"
+    hex ""
+    --> "d41d8cd98f00b204e9800998ecf8427e"
 
-    hex "foobarbaz" == "6df23dc03f9b54cc38a0fc1483df6e21"
-
-Unlike the [Javascript program](https://css-tricks.com/snippets/javascript/javascript-md5/) upon which this
-implementation is based, CRLF pairs in the input are not automatically replaced with LFs prior to computing
-the digest. If you want that behaviour you should adjust the input yourself before evaluating the function.
-For example:
-
-    myHex : String -> String
-    myHex input =
-        let
-            myInput =
-                Regex.replace Regex.All (Regex.regex "\u{000D}\n") (\_ -> "\n") input
-        in
-        hex myInput
+    hex "foobarbaz"
+    --> "6df23dc03f9b54cc38a0fc1483df6e21"
 
 -}
 hex : String -> String
-hex string =
+hex s =
+    List.foldl (\b acc -> acc ++ String.padLeft 2 '0' (toHex b)) "" (bytes s)
+
+
+{-| Given a string of arbitrary length, returns a list of integers representing
+the hash as a series of individual bytes.
+
+    bytes "hello world"
+    --> [ 0x5e , 0xb6 , 0x3b , 0xbb
+    --> , 0xe0 , 0x1e , 0xee , 0xd0
+    --> , 0x93 , 0xcb , 0x22 , 0xbb
+    --> , 0x8f , 0x5a , 0xcd , 0xc3
+    --> ]
+
+-}
+bytes : String -> List Int
+bytes string =
     let
         { a, b, c, d } =
             hash string
     in
-    wordToHex a ++ wordToHex b ++ wordToHex c ++ wordToHex d
+    [ and a 255
+    , and (shiftRightZfBy 8 a) 255
+    , and (shiftRightZfBy 16 a) 255
+    , and (shiftRightZfBy 24 a) 255
+    , and b 255
+    , and (shiftRightZfBy 8 b) 255
+    , and (shiftRightZfBy 16 b) 255
+    , and (shiftRightZfBy 24 b) 255
+    , and c 255
+    , and (shiftRightZfBy 8 c) 255
+    , and (shiftRightZfBy 16 c) 255
+    , and (shiftRightZfBy 24 c) 255
+    , and d 255
+    , and (shiftRightZfBy 8 d) 255
+    , and (shiftRightZfBy 16 d) 255
+    , and (shiftRightZfBy 24 d) 255
+    ]
 
 
 hex_ : List Int -> State -> State
@@ -415,24 +436,6 @@ finishUp ( hashState, ( byteCount, words ), totalByteCount ) =
             |> Array.set 15 (shiftRightZfBy 29 totalByteCount)
             |> Array.toList
             |> (\x -> hex_ x (hex_ (Array.toList newWords) hashState))
-
-
-wordToHex : Int -> String
-wordToHex input =
-    wordToHex_ input 0 ""
-
-
-wordToHex_ : Int -> Int -> String -> String
-wordToHex_ input index output =
-    if index > 3 then
-        output
-
-    else
-        let
-            byte =
-                and (shiftRightZfBy (index * 8) input) 255
-        in
-        wordToHex_ input (index + 1) (output ++ String.padLeft 2 '0' (toHex byte))
 
 
 toHex : Int -> String
