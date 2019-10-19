@@ -17,15 +17,6 @@ import Bitwise exposing (and, complement, or, shiftLeftBy, shiftRightBy, shiftRi
 import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Decode as Decode exposing (Decoder, Step(..))
 import Bytes.Encode as Encode
-import Hex.Convert
-import String.UTF8 as UTF8
-
-
-blockToString b16 b15 b14 b13 b12 b11 b10 b9 b8 b7 b6 b5 b4 b3 b2 b1 =
-    [ b16, b15, b14, b13, b12, b11, b10, b9, b8, b7, b6, b5, b4, b3, b2, b1 ]
-        |> List.reverse
-        |> List.map (Bitwise.shiftRightZfBy 0 >> toHex >> String.padLeft 8 '0')
-        |> String.join " "
 
 
 {-| Given a string of arbitrary length, returns a string of 32 hexadecimal
@@ -40,7 +31,6 @@ characters (a-f, 0-9) representing the 128-bit MD5 message digest.
 -}
 hex : String -> String
 hex s =
-    -- List.foldl (\b acc -> acc ++ String.padLeft 2 '0' (toHex b)) "" (byteValues s)
     fromString s
 
 
@@ -93,19 +83,8 @@ fromString string =
     fromBytes (Encode.encode (Encode.string string))
 
 
-hex_ : List Int -> State -> State
-hex_ xs acc =
-    case xs of
-        [ x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15 ] ->
-            hex__ acc x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15
-
-        _ ->
-            acc
-
-
 hex__ ({ a, b, c, d } as acc) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 =
     let
-        -- _ = Debug.log "input block" (blockToString x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15)
         s11 =
             7
 
@@ -373,13 +352,6 @@ hex__ ({ a, b, c, d } as acc) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 
     { a = a17, b = b17, c = c17, d = d17 }
 
 
-hash : String -> State
-hash input =
-    input
-        |> UTF8.foldl consume ( initialHashState, ( 0, emptyWords ), 0 )
-        |> finishUp
-
-
 padBuffer : Int -> Bytes -> Bytes
 padBuffer byteCount bytes =
     let
@@ -440,7 +412,6 @@ hashBytesHelp fullSize isLast bytes state =
 hashChunks : Bytes -> State -> State
 hashChunks message state =
     let
-        -- _ = Debug.log "message" (Hex.Convert.toString message)
         numberOfChunks : Int
         numberOfChunks =
             Bytes.width message // 64
@@ -468,96 +439,16 @@ reduceBytesMessage state =
 
 
 reduceChunk state b16 b15 b14 b13 b12 b11 b10 b9 b8 b7 b6 b5 b4 b3 b2 b1 =
-    -- b16 b15 b14 b13 b12 b11 b10 b9 b8 b7 b6 b5 b4 b3 b2 b1
     hex__ state b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15 b16
-
-
-emptyWords : Array Int
-emptyWords =
-    Array.repeat 16 0
 
 
 type alias State =
     { a : Int, b : Int, c : Int, d : Int }
 
 
-type alias Acc =
-    ( -- hash state
-      State
-      -- splitting into words
-    , ( Int, Array Int )
-      -- total byte count
-    , Int
-    )
-
-
 initialHashState : State
 initialHashState =
     State 0x67452301 0xEFCDAB89 0x98BADCFE 0x10325476
-
-
-consume : Int -> Acc -> Acc
-consume char ( hashState, ( byteCount, words ), totalByteCount ) =
-    let
-        bytePosition =
-            8 * remainderBy 4 byteCount
-
-        code =
-            shiftLeftBy bytePosition char
-
-        wordCount =
-            byteCount // 4
-
-        oldWord =
-            iget wordCount words
-
-        newWord =
-            or oldWord code
-
-        newWords =
-            Array.set wordCount newWord words
-    in
-    if byteCount == 63 then
-        ( hex_ (Array.toList newWords) hashState, ( 0, emptyWords ), totalByteCount + 1 )
-
-    else
-        ( hashState, ( byteCount + 1, newWords ), totalByteCount + 1 )
-
-
-finishUp : Acc -> State
-finishUp ( hashState, ( byteCount, words ), totalByteCount ) =
-    let
-        wordCount =
-            byteCount // 4
-
-        bytePosition =
-            8 * remainderBy 4 byteCount
-
-        oldWord =
-            iget wordCount words
-
-        code =
-            shiftLeftBy bytePosition 0x80
-
-        newWord =
-            or oldWord code
-
-        newWords =
-            Array.set wordCount newWord words
-    in
-    if wordCount < 14 then
-        newWords
-            |> Array.set 14 (shiftLeftBy 3 totalByteCount)
-            |> Array.set 15 (shiftRightZfBy 29 totalByteCount)
-            |> Array.toList
-            |> (\x -> hex_ x hashState)
-
-    else
-        emptyWords
-            |> Array.set 14 (shiftLeftBy 3 totalByteCount)
-            |> Array.set 15 (shiftRightZfBy 29 totalByteCount)
-            |> Array.toList
-            |> (\x -> hex_ x (hex_ (Array.toList newWords) hashState))
 
 
 toHex : Int -> String
