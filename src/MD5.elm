@@ -358,12 +358,9 @@ padBuffer : Int -> Bytes -> Bytes
 padBuffer byteCount bytes =
     let
         finalBlockSize =
-            -- modBy 64 byteCount, but faster
-            Bitwise.and byteCount 0x3F
+            modBy 64 byteCount
 
         paddingSize =
-            -- I'm not totally sure where these numbers come from
-            -- the 4 is because we encode the length as u32, where u64 is expected
             if finalBlockSize < 56 then
                 55 - finalBlockSize
 
@@ -394,6 +391,9 @@ maxBufferSize =
     2048 * 64
 
 
+{-| large `Bytes` values are not reliable.
+Therefore split any input that is too large into smaller pieces.
+-}
 hashBytesHelp : Int -> Bool -> Bytes -> State -> State
 hashBytesHelp fullSize isLast bytes state =
     if Bytes.width bytes > maxBufferSize then
@@ -457,11 +457,6 @@ rotateLeft bits input =
 addUnsigned : Int -> Int -> Int
 addUnsigned x y =
     (x + y) |> Bitwise.and 0xFFFFFFFF
-
-
-iget : Int -> Array Int -> Int
-iget index array =
-    Array.get index array |> Maybe.withDefault 0
 
 
 f : Int -> Int -> Int -> Int
@@ -551,9 +546,6 @@ map16 function b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15 b16 =
 
 
 {-| Iterate a decoder `n` times
-
-Needs some care to not run into stack overflow. This definition is nicely tail-recursive.
-
 -}
 iterate : Int -> (a -> Decoder a) -> a -> Decoder a
 iterate n step initial =
@@ -587,6 +579,11 @@ splitBytes n buffer =
 -- HEX CONVERSION HELPERS
 
 
+{-| Turn an integer into an 8-character hex string
+
+The integer is treated as litte-endian
+
+-}
 unsigned32ToHex : Int -> String
 unsigned32ToHex value =
     let
