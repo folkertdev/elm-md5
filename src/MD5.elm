@@ -1,4 +1,4 @@
-module MD5 exposing (hex, byteValues)
+module MD5 exposing (hex, byteValues, fromBytes)
 
 {-| This library allows you to compute MD5 message digests in Elm. It exposes a
 single function that takes any string and outputs a "fingerprint" containing 32
@@ -8,7 +8,7 @@ hexadecimal characters. More information about the MD5 algorithm can be found
 
 # Digest Functions
 
-@docs hex, byteValues
+@docs hex, byteValues, fromBytes
 
 -}
 
@@ -459,57 +459,46 @@ addUnsigned x y =
     (x + y) |> Bitwise.and 0xFFFFFFFF
 
 
-f : Int -> Int -> Int -> Int
-f x y z =
-    Bitwise.xor y z
-        |> Bitwise.and x
-        |> Bitwise.xor z
-
-
-g : Int -> Int -> Int -> Int
-g x y z =
-    Bitwise.xor x y
-        |> Bitwise.and z
-        |> Bitwise.xor y
-
-
-h : Int -> Int -> Int -> Int
-h x y z =
-    Bitwise.xor x y |> Bitwise.xor z
-
-
-i : Int -> Int -> Int -> Int
-i x y z =
-    Bitwise.xor y (or x (complement z))
-
-
 ff : Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
 ff a b c d x s ac =
-    cmn f a b c d x s ac
+    let
+        f =
+            Bitwise.xor c d
+                |> Bitwise.and b
+                |> Bitwise.xor d
+    in
+    rotateLeft s (f + x + ac + a) + b
 
 
 gg : Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
 gg a b c d x s ac =
-    cmn g a b c d x s ac
+    let
+        g =
+            Bitwise.xor b c
+                |> Bitwise.and d
+                |> Bitwise.xor c
+    in
+    rotateLeft s (g + x + ac + a) + b
 
 
 hh : Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
 hh a b c d x s ac =
-    cmn h a b c d x s ac
+    let
+        h =
+            Bitwise.xor b c |> Bitwise.xor d
+    in
+    rotateLeft s (h + x + ac + a) + b
 
 
 ii : Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
 ii a b c d x s ac =
-    cmn i a b c d x s ac
-
-
-cmn : (Int -> Int -> Int -> Int) -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
-cmn fun a b c d x s ac =
-    addUnsigned (fun b c d) x
-        |> addUnsigned ac
-        |> addUnsigned a
-        |> rotateLeft s
-        |> addUnsigned b
+    let
+        i =
+            Bitwise.xor c (or b (complement d))
+                -- complement can flip the sign. Force unsigned
+                |> Bitwise.shiftRightZfBy 0
+    in
+    rotateLeft s (i + x + ac + a) + b
 
 
 
