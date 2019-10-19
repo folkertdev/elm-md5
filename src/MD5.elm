@@ -73,9 +73,11 @@ toByteValues { a, b, c, d } =
 
 fromBytes : Bytes -> String
 fromBytes bytes =
-    hashBytes bytes initialHashState
-        |> toByteValues
-        |> List.foldl (\b acc -> acc ++ String.padLeft 2 '0' (toHex b)) ""
+    let
+        { a, b, c, d } =
+            hashBytes bytes initialHashState
+    in
+    unsigned32ToHex a ++ unsigned32ToHex b ++ unsigned32ToHex c ++ unsigned32ToHex d
 
 
 fromString : String -> String
@@ -83,7 +85,7 @@ fromString string =
     fromBytes (Encode.encode (Encode.string string))
 
 
-hex__ ({ a, b, c, d } as acc) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 =
+reduceChunk ({ a, b, c, d } as acc) x15 x14 x13 x12 x11 x10 x9 x8 x7 x6 x5 x4 x3 x2 x1 x0 =
     let
         s11 =
             7
@@ -438,10 +440,6 @@ reduceBytesMessage state =
     map16 (reduceChunk state) u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32
 
 
-reduceChunk state b16 b15 b14 b13 b12 b11 b10 b9 b8 b7 b6 b5 b4 b3 b2 b1 =
-    hex__ state b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15 b16
-
-
 type alias State =
     { a : Int, b : Int, c : Int, d : Int }
 
@@ -449,61 +447,6 @@ type alias State =
 initialHashState : State
 initialHashState =
     State 0x67452301 0xEFCDAB89 0x98BADCFE 0x10325476
-
-
-toHex : Int -> String
-toHex byte =
-    case byte of
-        0 ->
-            "0"
-
-        1 ->
-            "1"
-
-        2 ->
-            "2"
-
-        3 ->
-            "3"
-
-        4 ->
-            "4"
-
-        5 ->
-            "5"
-
-        6 ->
-            "6"
-
-        7 ->
-            "7"
-
-        8 ->
-            "8"
-
-        9 ->
-            "9"
-
-        10 ->
-            "a"
-
-        11 ->
-            "b"
-
-        12 ->
-            "c"
-
-        13 ->
-            "d"
-
-        14 ->
-            "e"
-
-        15 ->
-            "f"
-
-        _ ->
-            toHex (byte // 16) ++ toHex (remainderBy 16 byte)
 
 
 rotateLeft : Int -> Int -> Int
@@ -638,3 +581,106 @@ splitBytes n buffer =
 
         Nothing ->
             ( buffer, Encode.encode (Encode.sequence []) )
+
+
+
+-- HEX CONVERSION HELPERS
+
+
+unsigned32ToHex : Int -> String
+unsigned32ToHex value =
+    let
+        p1 =
+            value
+
+        p2 =
+            Bitwise.shiftRightZfBy 4 value
+
+        p3 =
+            Bitwise.shiftRightZfBy 8 value
+
+        p4 =
+            Bitwise.shiftRightZfBy 12 value
+
+        p5 =
+            Bitwise.shiftRightZfBy 16 value
+
+        p6 =
+            Bitwise.shiftRightZfBy 20 value
+
+        p7 =
+            Bitwise.shiftRightZfBy 24 value
+
+        p8 =
+            Bitwise.shiftRightZfBy 28 value
+    in
+    ""
+        |> String.cons (unsafeToDigit (Bitwise.and p7 0x0F))
+        |> String.cons (unsafeToDigit (Bitwise.and p8 0x0F))
+        |> String.cons (unsafeToDigit (Bitwise.and p5 0x0F))
+        |> String.cons (unsafeToDigit (Bitwise.and p6 0x0F))
+        |> String.cons (unsafeToDigit (Bitwise.and p3 0x0F))
+        |> String.cons (unsafeToDigit (Bitwise.and p4 0x0F))
+        |> String.cons (unsafeToDigit (Bitwise.and p1 0x0F))
+        |> String.cons (unsafeToDigit (Bitwise.and p2 0x0F))
+
+
+{-| ONLY EVER CALL THIS WITH INTEGERS BETWEEN 0 and 15!
+-}
+unsafeToDigit : Int -> Char
+unsafeToDigit num =
+    case num of
+        0 ->
+            '0'
+
+        1 ->
+            '1'
+
+        2 ->
+            '2'
+
+        3 ->
+            '3'
+
+        4 ->
+            '4'
+
+        5 ->
+            '5'
+
+        6 ->
+            '6'
+
+        7 ->
+            '7'
+
+        8 ->
+            '8'
+
+        9 ->
+            '9'
+
+        10 ->
+            'a'
+
+        11 ->
+            'b'
+
+        12 ->
+            'c'
+
+        13 ->
+            'd'
+
+        14 ->
+            'e'
+
+        15 ->
+            'f'
+
+        _ ->
+            -- if this ever gets called with a number over 15, it will never
+            -- terminate! If that happens, debug further by uncommenting this:
+            --
+            -- Debug.todo ("Tried to convert " ++ toString num ++ " to hexadecimal.")
+            unsafeToDigit num
