@@ -354,9 +354,12 @@ reduceChunk ({ a, b, c, d } as acc) x15 x14 x13 x12 x11 x10 x9 x8 x7 x6 x5 x4 x3
     { a = a17, b = b17, c = c17, d = d17 }
 
 
-padBuffer : Int -> Bytes -> Bytes
-padBuffer byteCount bytes =
+padBuffer : Bytes -> Bytes
+padBuffer bytes =
     let
+        byteCount =
+            Bytes.width bytes
+
         finalBlockSize =
             modBy 64 byteCount
 
@@ -383,37 +386,10 @@ padBuffer byteCount bytes =
 
 hashBytes : Bytes -> State -> State
 hashBytes bytes state =
-    hashBytesHelp (Bytes.width bytes) True bytes state
-
-
-maxBufferSize : Int
-maxBufferSize =
-    2048 * 64
-
-
-{-| large `Bytes` values are not reliable.
-Therefore split any input that is too large into smaller pieces.
--}
-hashBytesHelp : Int -> Bool -> Bytes -> State -> State
-hashBytesHelp fullSize isLast bytes state =
-    if Bytes.width bytes > maxBufferSize then
-        let
-            ( first, rest ) =
-                splitBytes maxBufferSize bytes
-        in
-        hashBytesHelp fullSize True rest (hashBytesHelp fullSize False first state)
-
-    else if isLast then
-        -- add padding bytes and length
-        hashChunks (padBuffer fullSize bytes) state
-
-    else
-        hashChunks bytes state
-
-
-hashChunks : Bytes -> State -> State
-hashChunks message state =
     let
+        message =
+            padBuffer bytes
+
         numberOfChunks : Int
         numberOfChunks =
             Bytes.width message // 64
@@ -548,20 +524,6 @@ loopHelp step ( n, state ) =
 
     else
         Decode.succeed (Decode.Done state)
-
-
-splitBytes : Int -> Bytes -> ( Bytes, Bytes )
-splitBytes n buffer =
-    let
-        decoder =
-            Decode.map2 Tuple.pair (Decode.bytes n) (Decode.bytes (Bytes.width buffer - n))
-    in
-    case Decode.decode decoder buffer of
-        Just v ->
-            v
-
-        Nothing ->
-            ( buffer, Encode.encode (Encode.sequence []) )
 
 
 
