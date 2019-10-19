@@ -14,6 +14,9 @@ hexadecimal characters. More information about the MD5 algorithm can be found
 
 import Array exposing (Array)
 import Bitwise exposing (and, complement, or, shiftLeftBy, shiftRightBy, shiftRightZfBy)
+import Bytes exposing (Bytes)
+import Bytes.Decode as Decode exposing (Decoder, Step(..))
+import Bytes.Encode as Encode
 import String.UTF8 as UTF8
 
 
@@ -559,3 +562,69 @@ cmn fun a b c d x s ac =
         |> addUnsigned a
         |> rotateLeft s
         |> addUnsigned b
+
+
+
+-- BYTES HELPERS
+
+
+{-| The most efficient implmenentation for `map16`, given that `Decode.map5` is the highest defined in Kernel code
+-}
+map16 :
+    (b1 -> b2 -> b3 -> b4 -> b5 -> b6 -> b7 -> b8 -> b9 -> b10 -> b11 -> b12 -> b13 -> b14 -> b15 -> b16 -> result)
+    -> Decoder b1
+    -> Decoder b2
+    -> Decoder b3
+    -> Decoder b4
+    -> Decoder b5
+    -> Decoder b6
+    -> Decoder b7
+    -> Decoder b8
+    -> Decoder b9
+    -> Decoder b10
+    -> Decoder b11
+    -> Decoder b12
+    -> Decoder b13
+    -> Decoder b14
+    -> Decoder b15
+    -> Decoder b16
+    -> Decoder result
+map16 function b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15 b16 =
+    Decode.succeed function
+        |> Decode.map5 (\a b c d e -> e d c b a) b4 b3 b2 b1
+        |> Decode.map5 (\a b c d e -> e d c b a) b8 b7 b6 b5
+        |> Decode.map5 (\a b c d e -> e d c b a) b12 b11 b10 b9
+        |> Decode.map5 (\a b c d e -> e d c b a) b16 b15 b14 b13
+
+
+{-| Iterate a decoder `n` times
+
+Needs some care to not run into stack overflow. This definition is nicely tail-recursive.
+
+-}
+iterate : Int -> (a -> Decoder a) -> a -> Decoder a
+iterate n step initial =
+    Decode.loop ( n, initial ) (loopHelp step)
+
+
+loopHelp step ( n, state ) =
+    if n > 0 then
+        step state
+            |> Decode.map (\new -> Loop ( n - 1, new ))
+
+    else
+        Decode.succeed (Decode.Done state)
+
+
+splitBytes : Int -> Bytes -> ( Bytes, Bytes )
+splitBytes n buffer =
+    let
+        decoder =
+            Decode.map2 Tuple.pair (Decode.bytes n) (Decode.bytes (Bytes.width buffer - n))
+    in
+    case Decode.decode decoder buffer of
+        Just v ->
+            v
+
+        Nothing ->
+            ( buffer, Encode.encode (Encode.sequence []) )
