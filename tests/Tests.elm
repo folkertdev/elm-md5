@@ -20,6 +20,7 @@ other =
         , test "latin1" "38e3f1e10c0b5072c874a72c3c6493d8" "æ ø å ñ"
         , test "unicode" "2adb08ac813a93665950fe9203faca10" "€ ♝ ♧ ☐"
         , test "newlines" "e1c06d85ae7b8b032bef47e42e4c08f9" "\n\n"
+        , test "large input" "7707d6ae4e027c70eea2a935c2296f21" (String.repeat 1000000 "a")
         ]
 
 
