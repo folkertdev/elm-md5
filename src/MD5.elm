@@ -85,7 +85,7 @@ fromString string =
     fromBytes (Encode.encode (Encode.string string))
 
 
-reduceChunk ({ a, b, c, d } as acc) x15 x14 x13 x12 x11 x10 x9 x8 x7 x6 x5 x4 x3 x2 x1 x0 =
+reduceChunk ({ a, b, c, d } as acc) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 =
     let
         s11 =
             7
@@ -502,12 +502,21 @@ map16 :
     -> Decoder b15
     -> Decoder b16
     -> Decoder result
-map16 function b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15 b16 =
-    Decode.succeed function
-        |> Decode.map5 (\a b c d e -> e d c b a) b4 b3 b2 b1
-        |> Decode.map5 (\a b c d e -> e d c b a) b8 b7 b6 b5
-        |> Decode.map5 (\a b c d e -> e d c b a) b12 b11 b10 b9
-        |> Decode.map5 (\a b c d e -> e d c b a) b16 b15 b14 b13
+map16 f b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15 b16 =
+    let
+        d1 =
+            Decode.map4 (\a b c d -> f a b c d) b1 b2 b3 b4
+
+        d2 =
+            Decode.map5 (\h a b c d -> h a b c d) d1 b5 b6 b7 b8
+
+        d3 =
+            Decode.map5 (\h a b c d -> h a b c d) d2 b9 b10 b11 b12
+
+        d4 =
+            Decode.map5 (\h a b c d -> h a b c d) d3 b13 b14 b15 b16
+    in
+    d4
 
 
 {-| Iterate a decoder `n` times
